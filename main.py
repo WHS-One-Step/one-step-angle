@@ -21,45 +21,44 @@ def complementary_filter(acceleration_angle: float, gyroscope_angle: float, delt
 def normalize_vector(vector: ndarray) -> ndarray:
     return vector / normalize(vector)
 
-def calculate(imu_one: IMU, imu_two: IMU, previous_timestamp: float) -> None:
-    # Validation:
-    # IMU:
-    if imu_one.get_acceleration() is None:
-        pass
+def calculate(imu_one: IMU, imu_two: IMU, previous_timestamp: float) -> float:
+    """
+    Calculate the angle between two IMUs in 3D space.
+    """
 
-    if imu_one.get_rotation() is None:
-        pass
+    if imu_one.get_acceleration() is None or imu_two.get_acceleration() is None:
+        raise ValueError("Acceleration data unavailable from one or both IMUs.")
+    if imu_one.get_rotation() is None or imu_two.get_rotation() is None:
+        raise ValueError("Rotation data unavailable from one or both IMUs.")
 
-    # IMU: 
-    if imu_two.get_acceleration() is None:
-        pass
 
-    if imu_two.get_rotation() is None:
-        pass
+    current_timestamp = imu_two.get_timestamp()
+    delta_time = (current_timestamp - previous_timestamp) / 1000  
 
-    # Variables (Assignment):
-    # Delta:
-    delta: float = (imu_two.get_timestamp() - previous_timestamp) / 1000
 
-    # Accelerations:
-    normalized_acceleration_one: ndarray = normalize_vector(array(imu_one.get_acceleration()))
-    normalized_acceleration_two: ndarray = normalize_vector(array(imu_two.get_acceleration()))
+    accel_one = normalize_vector(array(imu_one.get_acceleration()))
+    accel_two = normalize_vector(array(imu_two.get_acceleration()))
 
-    # Cosine:
-    cosine_angle: float = dot(normalized_acceleration_one, normalized_acceleration_two)
-    cosine_angle: float = clip(cosine_angle, -1.0, 1.0)
+    dot_product = dot(accel_one, accel_two)
+    dot_product = clip(dot_product, -1.0, 1.0) 
+    accel_angle = arccos(dot_product)
 
-    # Acceleration:
-    acceleration_angle: float = arccos(cosine_angle)
+    gyro_one = array(imu_one.get_rotation()) * delta_time
+    gyro_two = array(imu_two.get_rotation()) * delta_time
+    gyro_angle = (gyro_two - gyro_one)[2]  
 
-    # Velocity:
-    angular_velocity_difference: ndarray = array(imu_two.get_acceleration()) - array(imu_one.get_acceleration())
 
-    # Gyroscope:
-    gyroscopical_angle: float = angular_velocity_difference[2] * delta
+    combined_angle = complementary_filter(
+        acceleration_angle=accel_angle,
+        gyroscope_angle=gyro_angle,
+        delta=delta_time,
+        alpha=0.96  
+    )
 
-    # Logic:
-    return complementary_filter(acceleration_angle, gyroscopical_angle, delta)
+
+    angle_degrees = (combined_angle * 180 / 3.141592653589793) % 360
+
+    return angle_degrees
 
 def main() -> None:
     # Variables (Assignment):
