@@ -93,3 +93,4 @@ def main() -> None:
 
 # Main:
 main()
+print("Hello, world!")
