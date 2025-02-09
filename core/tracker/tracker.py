@@ -1,4 +1,4 @@
-# Written by: Christopher Gholmieh & Saahir Kadri
+# Written by: Christopher Gholmieh
 # Imports:
 
 # Phidget:
