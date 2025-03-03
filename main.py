@@ -1,4 +1,4 @@
-# Written by: Christopher Gholmieh
+# Written by: Christopher Gholmieh & Saahir Kadri
 # Imports:
 
 # Core:
@@ -13,3 +13,6 @@ if __name__ == "__main__":
 
     # Logic:
     tracker.start()
+
+    angle, pwm = tracker.calculate_knee_angle()
+    print(f"Knee Angle: {angle} -> PWM: {pwm}")

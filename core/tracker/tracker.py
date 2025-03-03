@@ -1,6 +1,6 @@
-# Written by: Christopher Gholmieh
+# Written by: Christopher Gholmieh & Saahir Kadri
 # Imports:
-
+from .pwm import map_angle_to_pwm
 # Phidget:
 # Spatial:
 from Phidget22.Devices.Spatial import *
@@ -95,12 +95,16 @@ class Tracker:
 
         # Range:
         angle = min(180.0, max(0.0, angle))
+
+        # Convert angle to PWM
+
+        pwm_value = map_angle_to_pwm(angle)
         
         # Logging:
-        logger.info(f"[*] Knee flexion angle: {angle:.1f} degrees.")
+        logger.info(f"[*] Knee flexion angle: {angle:.1f} degrees, PWM: {pwm_value}")
 
         # Logic:
-        return angle
+        return angle, pwm_value
 
     # Start:
     def start(self):
