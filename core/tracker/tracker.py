@@ -1,6 +1,6 @@
 # Written by: Christopher Gholmieh & Saahir Kadri
 # Imports:
-from .pwm import map_angle_to_pwm
+
 # Phidget:
 # Spatial:
 from Phidget22.Devices.Spatial import *
@@ -19,6 +19,9 @@ import time
 
 # Math:
 from math import (degrees, acos)
+
+# PWM:
+from .pwm import map_angle_to_pwm
 
 
 # Tracker:
