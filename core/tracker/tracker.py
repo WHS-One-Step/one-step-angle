@@ -21,101 +21,106 @@ import time
 # PWM:
 from .pwm import map_angle_to_pwm
 
-
 # Tracker:
 class Tracker:
     # Initialization:
-    def __init__(self):
+    def __init__(self) -> None:
         # IMUs:
         self.thigh_imu = Spatial()
         self.shank_imu = Spatial()
 
-        # Serials:
+        # Serial:
         self.thigh_imu.setDeviceSerialNumber(721783)
         self.shank_imu.setDeviceSerialNumber(721888)
 
         # Quaternions:
-        self.thigh_quaternion = np.array([1.0, 0.0, 0.0, 0.0])  # Identity quaternion
-        self.shank_quaternion = np.array([1.0, 0.0, 0.0, 0.0])  # Identity quaternion
-
-        # Handlers:
-        self.thigh_imu.setOnSpatialDataHandler(self.handle_thigh_imu_data)
-        self.shank_imu.setOnSpatialDataHandler(self.handle_shank_imu_data)
-
-        # Calibration:
-        self.calibration_offset = 0.0
+        self.thigh_quaternion = np.array([1.0, 0.0, 0.0, 0.0])
+        self.shank_quaternion = np.array([1.0, 0.0, 0.0, 0.0])
 
     # Methods:
-    def handle_thigh_imu_data(self, spatial, acceleration, angularRate, magneticField, timestamp: float):
+    def clamp_value(self, minimum: float, value: float, maximum: float) -> float:
+        if value < minimum:
+            return minimum
+        
+        if value > maximum:
+            return maximum
+
+        return value
+
+    def calculate_flexion_angle(self, debug: bool = True) -> float:
         try:
+            # Variables (Assignment):
+            # Rotations:
+            rotation_thigh = R.from_quat(self.thigh_quaternion[[1, 2, 3, 0]])
+            rotation_shank = R.from_quat(self.shank_quaternion[[1, 2, 3, 0]])
+
+            # Rotation:
+            relative_rotation = rotation_shank * rotation_thigh.inv()
+
+            # Euler:
+            euler_angles = relative_rotation.as_euler("xyz", degrees=True)
+
+            # Flexion:
+            flexion_angle = euler_angles[2] # Z
+
+            # Logic:
+            if debug:
+                logger.info(f"[Unclamped Flexion]: {flexion_angle}")
+
+            flexion_angle = self.clamp_value(0.0, flexion_angle, 180.0)
+
+            if debug:
+                print(f"[Clamped Flexion]: {flexion_angle}")
+                print(f"[PWM]: {map_angle_to_pwm(flexion_angle)}")
+
+            return flexion_angle
+        except Exception as exception:
+            print(f"[Error | Calculation]: {exception}")
+
+    def handle_thigh_imu(self, spatial, acceleration, angular_rotation, timestamp) -> None:
+        try:
+            # Variables (Assignment):
+            # Quaternion:
             quaternion = spatial.getQuaternion()
-            self.thigh_quaternion = np.array([quaternion[3], quaternion[0], quaternion[1], quaternion[2]])  # Convert to (w, x, y, z)
-        except PhidgetException as e:
-            logger.error(f"[!] Error reading thigh IMU quaternion: {e}")
 
-    def handle_shank_imu_data(self, spatial, acceleration, angularRate, magneticField, timestamp):
+            # Logic:
+            self.thigh_quaternion = np.array([quaternion.w, quaternion.x, quaternion.y, quaternion.z])
+        except PhidgetException as exception:
+            print(f"[Error | Thigh IMU Quaternion]: {exception}")
+
+    def handle_shank_imu(self, spatial, acceleration, angular_rotation, timestamp) -> None:
         try:
+            # Variables (Assignment):
+            # Quaternion:
             quaternion = spatial.getQuaternion()
-            self.shank_quaternion = np.array([quaternion[3], quaternion[0], quaternion[1], quaternion[2]])  # Convert to (w, x, y, z)
-            self.calculate_knee_angle()  # Calculate on new data
-        except PhidgetException as e:
-            logger.error(f"[!] Error reading shank IMU quaternion: {e}")
 
-    # Calibration:
-    def calibrate(self):
-        logger.info("[*] Calibrating... Please keep the knee fully extended.")
+            # Logic:
+            self.shank_quaternion = np.array([quaternion.w, quaternion.x, quaternion.y, quaternion.z])
 
-        time.sleep(2)
-        angles = []
+            self.calculate_flexion_angle(debug=True)
+        except PhidgetException as exception:
+            print(f"[Error | Shank IMU Quaternion]: {exception}")
 
-        for _ in range(20):  # Average over 20 readings
-            angle = self.calculate_knee_angle(raw=True)
-            if angle is not None:
-                angles.append(angle)
-            time.sleep(0.1)
-
-        if angles:
-            self.calibration_offset = np.mean(angles)
-            logger.info(f"[+] Calibration completed. Offset: {self.calibration_offset:.2f} degrees")
-        else:
-            logger.error("[!] Calibration failed. No valid readings.")
-
-    def calculate_knee_angle(self, raw=False):
+    def start(self) -> None:
         try:
-            # Compute relative rotation: R_shank * R_thigh^(-1)
-            relative_rotation = R.from_quat(self.shank_quaternion) * R.from_quat(self.thigh_quaternion).inv()
-            euler_angles = relative_rotation.as_euler('xyz', degrees=True)  # Convert to Euler angles
-
-            knee_angle = euler_angles[1]  # Pitch (Y-axis rotation)
-            knee_angle = max(0.0, min(180.0, knee_angle + self.calibration_offset))  # Apply offset and limit range
-
-            if raw:
-                return knee_angle  # Return raw value for calibration
-
-            pwm_value = map_angle_to_pwm(knee_angle)  # Convert to PWM
-
-            logger.info(f"[*] Knee flexion angle: {knee_angle:.1f} degrees, PWM: {pwm_value}")
-            return knee_angle, pwm_value
-        except Exception as e:
-            logger.error(f"[!] Error calculating knee angle: {e}")
-            return None
-
-    # Start:
-    def start(self):
-        try:
+            # Initialization:
             self.thigh_imu.openWaitForAttachment(5000)
             self.shank_imu.openWaitForAttachment(5000)
 
-            logger.info("[+] IMUs connected. Starting calibration...")
+            print("[+] IMUs connected. Starting data collection...")
 
-            self.calibrate()
+            self.thigh_imu.setOnSpatialDataHandler(self.handle_thigh_imu)
+            self.shank_imu.setOnSpatialDataHandler(self.handle_shank_imu)
 
-            logger.info("[*] Starting knee angle calculation... Press Enter to stop.")
+            # Loop:
+            while True:
+                time.sleep(0.1)
 
-            input()
         except PhidgetException as exception:
-            logger.error(f"Phidget Exception {exception.code}: {exception.details}")
+            print(f"[Phidget Exception]: {exception}")
+
         finally:
             self.thigh_imu.close()
             self.shank_imu.close()
-            logger.info("[*] IMUs disconnected.")
+
+            print("[*] IMUs disconnected.")
