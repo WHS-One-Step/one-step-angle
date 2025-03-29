@@ -51,8 +51,8 @@ class Tracker:
         try:
             # Variables (Assignment):
             # Rotations:
-            rotation_thigh = R.from_quat(self.thigh_quaternion[[1, 2, 3, 0]])
-            rotation_shank = R.from_quat(self.shank_quaternion[[1, 2, 3, 0]])
+            rotation_thigh = R.from_quat(self.thigh_quaternion)
+            rotation_shank = R.from_quat(self.shank_quaternion)
 
             # Rotation:
             relative_rotation = rotation_shank * rotation_thigh.inv()
@@ -77,7 +77,7 @@ class Tracker:
         except Exception as exception:
             print(f"[Error | Calculation]: {exception}")
 
-    def handle_thigh_imu(self, spatial, acceleration, angular_rotation, timestamp) -> None:
+    def handle_thigh_imu(self, spatial, acceleration, angular_rotation, magnetic_field, timestamp) -> None:
         try:
             # Variables (Assignment):
             # Quaternion:
@@ -88,7 +88,7 @@ class Tracker:
         except PhidgetException as exception:
             print(f"[Error | Thigh IMU Quaternion]: {exception}")
 
-    def handle_shank_imu(self, spatial, acceleration, angular_rotation, timestamp) -> None:
+    def handle_shank_imu(self, spatial, acceleration, angular_rotation, magnetic_field, timestamp) -> None:
         try:
             # Variables (Assignment):
             # Quaternion:
