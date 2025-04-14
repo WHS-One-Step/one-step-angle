@@ -1,6 +1,10 @@
 # One-Step-Angle:
 This repository contains the official source code pertaining to the calculation of the knee-flexion angle for team One-Step.
 
+## Directories:
+- bootstrap: Contains bootstrapping Linux scripts to quickly install dependencies related to the Operating System and Python Virtual Environment.
+- core: Contains the core components of the project, mainly the Tracker class that performs calculations on data provided by two IMUs.
+
 ## Prerequisites:
 * A Linux Operating System that utilizes the **APT** package manager, as that is what the scripts are configured to use to install the appropriate libphidget bindings.
 * Two PhidgetSpatial 3/3/3 IMUs, with one on the thigh and one on the shank.
